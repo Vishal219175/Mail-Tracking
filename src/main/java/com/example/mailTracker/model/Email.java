@@ -1,5 +1,11 @@
 package com.example.mailTracker.model;
-
+/**
+ * The Email Entity.
+ *
+ * @author rakesh.mahajan@nobrainsolutions.com
+ * @version 1.0
+ * @since 1.0
+ */
 public class Email {
     private String subject;
     private String content;

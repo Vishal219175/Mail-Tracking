@@ -8,15 +8,21 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
-
+import javax.mail.*;
 import javax.mail.Message;
+import javax.mail.search.SearchTerm;
+import javax.mail.search.SubjectTerm;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.*;
 
+/**
+ * The Email Entity.
+ *
+ * @author rakesh.mahajan@nobrainsolutions.com
+ * @version 1.0
+ * @since 1.0
+ */
 @RestController
 public class EmailController {
 
@@ -26,6 +32,14 @@ public class EmailController {
     @Autowired
     private EmailParser emailParser;
 
+    private final ExecutorService executor;
+
+    public EmailController(EmailService emailService) {
+        this.emailService = emailService;
+        this.executor = Executors.newCachedThreadPool();
+    }
+
+
     @PostMapping("/send")
     public String sendEmail(@RequestParam String toEmail, @RequestParam String subject, @RequestParam String body) {
         emailService.sendEmail(toEmail, subject, body);
@@ -33,41 +47,30 @@ public class EmailController {
     }
 
     @GetMapping("/getReplies")
-    public Email getReplies(@RequestParam String subjectId) {
-        ExecutorService executor = Executors.newFixedThreadPool(10);
-        List<Future<Email>> futures = new ArrayList<>();
+    public CompletableFuture<Email> getReplies(@RequestParam String subjectId) {
+        return CompletableFuture.supplyAsync(() -> {
+            try {
+                emailService.connectToStore();
+                emailService.openFolder();
 
-        try {
-            emailService.connectToStore();
-            emailService.openFolder();
+                SearchTerm searchTerm = new SubjectTerm("[ID: " + subjectId + "]");
+                Message[] messages = emailService.searchEmails(searchTerm);
 
-            Message[] messages = emailService.checkEmail();
-            for (Message message : messages) {
-                Callable<Email> task = () -> {
-                    String subject = message.getSubject();
-                    if (subject != null && subject.contains("[ID: " + subjectId + "]")) {
+                for (Message message : messages) {
+                    if (message.getSubject().contains("[ID: " + subjectId + "]")) {
                         Email email = new Email();
-                        email.setSubject(subject);
+                        email.setSubject(message.getSubject());
                         email.setContent(emailParser.parseContent(message));
                         return email;
                     }
-                    return null;
-                };
-                futures.add(executor.submit(task));
-            }
-
-            for (Future<Email> future : futures) {
-                Email email = future.get();
-                if (email != null) {
-                    executor.shutdownNow();
-                    return email;
                 }
+            } catch (Exception e) {
+                e.printStackTrace();
+            } finally {
+                emailService.closeFolder();
+                emailService.disconnectStore();
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-        } finally {
-            executor.shutdown();
-        }
-        return null;
+            return null;
+        }, executor);
     }
 }

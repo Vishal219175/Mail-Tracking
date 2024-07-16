@@ -6,7 +6,13 @@ import javax.mail.MessagingException;
 import javax.mail.Part;
 import javax.mail.internet.MimeMultipart;
 import java.io.IOException;
-
+/**
+ * The EmailParser.
+ *
+ * @author rakesh.mahajan@nobrainsolutions.com
+ * @version 1.0
+ * @since 1.0
+ */
 @Service
 public class EmailParser {
 

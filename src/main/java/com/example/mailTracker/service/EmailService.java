@@ -6,9 +6,16 @@ import org.springframework.stereotype.Service;
 import javax.mail.*;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
+import javax.mail.search.SearchTerm;
 import java.util.Properties;
 import java.util.UUID;
-
+/**
+ * The EmailService.
+ *
+ * @author rakesh.mahajan@nobrainsolutions.com
+ * @version 1.0
+ * @since 1.0
+ */
 @Service
 public class EmailService {
 
@@ -23,6 +30,8 @@ public class EmailService {
 
     private Store store;
     private Folder emailFolder;
+
+
 
     public void sendEmail(String toEmail, String subject, String body) {
         Properties props = new Properties();
@@ -54,21 +63,38 @@ public class EmailService {
             throw new RuntimeException(e);
         }
     }
-
-    public void connectToStore() throws MessagingException {
-        if (store == null || !store.isConnected()) {
-            Properties properties = new Properties();
-            properties.put("mail.store.protocol", "imaps");
-            Session emailSession = Session.getDefaultInstance(properties);
-            store = emailSession.getStore();
-            store.connect("imap.gmail.com", user, password);
+    public void closeFolder() {
+        try {
+            if (emailFolder != null && emailFolder.isOpen()) {
+                emailFolder.close(false);
+            }
+        } catch (MessagingException e) {
+            e.printStackTrace();
         }
+    }
+    public Message[] searchEmails(SearchTerm searchTerm) throws MessagingException {
+        return emailFolder.search(searchTerm);
+    }
+    public void connectToStore() throws MessagingException {
+        Properties props = new Properties();
+        props.put("mail.store.protocol", "imaps");
+        Session session = Session.getDefaultInstance(props, null);
+        store = session.getStore("imaps");
+        store.connect(host, user, password);
     }
 
     public void openFolder() throws MessagingException {
-        if (emailFolder == null || !emailFolder.isOpen()) {
-            emailFolder = store.getFolder("INBOX");
-            emailFolder.open(Folder.READ_ONLY);
+        emailFolder = store.getFolder("INBOX");
+        emailFolder.open(Folder.READ_ONLY);
+    }
+
+    public void disconnectStore() {
+        try {
+            if (store != null && store.isConnected()) {
+                store.close();
+            }
+        } catch (MessagingException e) {
+            e.printStackTrace();
         }
     }
 
